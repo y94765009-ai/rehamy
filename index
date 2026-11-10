@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>يومي وتعلّمي - منصة المتابعة اليومية</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        // رابط نشر Google Apps Script Web App (اتركه فارغاً للتخزين المحلي فقط)
+        const SCRIPT_URL = '';
+
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                        },
+                        study: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        accent: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        input, select, textarea, button {
+            min-height: 42px;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-24 md:pb-6 flex flex-col">
+
+    <!-- Auth View (شاشة التسجيل والدخول) -->
+    <div id="authScreen" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-gradient-to-tr from-brand-600 to-study-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
+                    <i data-lucide="sparkles" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800">مرحباً بك في «يومي وتعلّمي»</h2>
+                <p class="text-xs text-slate-500 font-medium">سجّلي دخولك أو أنشئي حساباً للمتابعة والمزامنة</p>
+            </div>
+
+            <form id="authForm" onsubmit="event.preventDefault();" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم</label>
+                    <input type="text" id="authUsername" placeholder="مثلاً: sara_2026" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">رمز PIN السري (4 إلى 6 أرقام)</label>
+                    <input type="password" id="authPin" placeholder="••••" maxlength="6" pattern="\d{4,6}" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500 tracking-widest" required>
+                </div>
+
+                <div id="authError" class="hidden text-xs bg-red-50 text-red-600 p-3 rounded-xl border border-red-200 font-semibold"></div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button type="button" onclick="performAuth('login')" class="bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-md text-sm transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> دخول
+                    </button>
+                    <button type="button" onclick="performAuth('register')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl border border-slate-300 text-sm transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> حساب جديد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top Navigation / Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-brand-600 to-study-600 text-white p-2.5 rounded-2xl shadow-md">
+                    <i data-lucide="sparkles" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800 leading-tight">يومي وتعلّمي</h1>
+                    <div class="flex items-center gap-2">
+                        <p class="text-xs text-slate-500 font-medium" id="headerSubtitle">مساحتك الخاصة للنمو والتوازن</p>
+                        <!-- Sync Status Indicator -->
+                        <span id="syncStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 text-slate-600 border-slate-200 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            جاهز
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Quick Info & Settings -->
+            <div class="flex items-center gap-2 md:gap-4">
+                <div id="headerLevelBadge" class="hidden sm:flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                    <span class="text-xs text-slate-500">المستوى:</span>
+                    <span class="text-xs font-bold text-brand-700" id="headerLevelName">البداية</span>
+                    <span class="bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" id="headerPoints">0 ن</span>
+                </div>
+
+                <button onclick="openSettingsModal()" class="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition" title="الإعدادات والأهداف">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
+
+        <!-- Navigation Tabs for Desktop / Top -->
+        <div class="hidden md:flex items-center justify-between mb-6 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+            <nav class="flex gap-2">
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    لوحة اليوم
+                </button>
+                <button onclick="switchTab('entry')" id="tab-btn-entry" class="tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    تسجيل يوم
+                </button>
+                <button onclick="switchTab('weekly')" id="tab-btn-weekly" class="tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    ملخص الأسبوع
+                </button>
+                <button onclick="switchTab('achievements')" id="tab-btn-achievements" class="tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+                    <i data-lucide="award" class="w-4 h-4"></i>
+                    الإنجازات
+                </button>
+            </nav>
+
+            <button onclick="prepareNewEntry()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                سجّلي يومك
+            </button>
+        </div>
+
+        <!-- Dynamic Views -->
+        <div id="viewContainer">
+            <!-- SECTION 01 & 04: DASHBOARD VIEW -->
+            <section id="view-dashboard" class="space-y-6">
+                <!-- Welcome Banner & Main Metrics -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Points & Level Card -->
+                    <div class="bg-gradient-to-br from-white to-brand-50 p-4 rounded-2xl border border-brand-100 shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-semibold text-slate-500">نقاط اليوم والمستوى</span>
+                            <div class="bg-brand-100 text-brand-700 p-1.5 rounded-lg">
+                                <i data-lucide="trophy" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black text-slate-800" id="dashTotalPoints">0</span>
+                            <span class="text-xs font-bold text-brand-600">نقطة إجمالية</span>
+                        </div>
+                        <div class="mt-3">
+                            <div class="flex justify-between text-xs text-slate-600 mb-1">
+                                <span id="dashLevelTitle">البداية</span>
+                                <span id="dashNextLevelProgress">0 / 50</span>
+                            </div>
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="dashLevelBar" class="bg-brand-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Score -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-semibold text-slate-500">إنجاز اليوم</span>
+                            <div class="bg-amber-100 text-amber-700 p-1.5 rounded-lg">
+                                <i data-lucide="star" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black text-slate-800" id="dashTodayPoints">0</span>
+                            <span class="text-xs text-slate-400">/ 30 نقطة (الحد اليومي)</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3" id="dashTodayStatus">لم تسجلي بعد لهذا اليوم</p>
+                    </div>
+
+                    <!-- Movement Goal Progress -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-semibold text-slate-500">هدف الحركة الأسبوعي</span>
+                            <div class="bg-emerald-100 text-emerald-700 p-1.5 rounded-lg">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black text-slate-800" id="dashMoveProgressVal">0</span>
+                            <span class="text-xs text-slate-500" id="dashMoveGoalUnit">دقيقة</span>
+                        </div>
+                        <div class="mt-3">
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="dashMoveBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-1" id="dashMoveGoalText">الهدف: 150 دقيقة</p>
+                        </div>
+                    </div>
+
+                    <!-- Learning Goal Progress -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-semibold text-slate-500">هدف التعلّم الأسبوعي</span>
+                            <div class="bg-study-100 text-study-700 p-1.5 rounded-lg">
+                                <i data-lucide="book-open" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black text-slate-800" id="dashLearnProgressVal">0</span>
+                            <span class="text-xs text-slate-500">مهمة / جلسة</span>
+                        </div>
+                        <div class="mt-3">
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="dashLearnBar" class="bg-study-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-1" id="dashLearnGoalText">الهدف: 5 جلسات</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: "إيه اللي لاحظته النهارده؟" -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                        <i data-lucide="eye" class="w-5 h-5 text-study-600"></i>
+                        <h2 class="font-bold text-slate-800">إيه اللي لاحظته النهارده؟</h2>
+                    </div>
+
+                    <div id="todayObservationContent" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Section: "نصائح ليومك وتحدي الغد" -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-md">
+                    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-700">
+                        <i data-lucide="lightbulb" class="w-5 h-5 text-amber-400"></i>
+                        <h2 class="font-bold text-lg">نصائح ليومك وتحدي الغد</h2>
+                    </div>
+
+                    <div class="space-y-4" id="aiTipsContainer">
+                        <!-- Tips populated by JS logic -->
+                    </div>
+
+                    <!-- Tomorrow's Challenge Card -->
+                    <div id="tomorrowChallengeCard" class="mt-5 pt-4 border-t border-slate-700 hidden">
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-amber-500/20 text-amber-400 p-2 rounded-lg shrink-0">
+                                    <i data-lucide="target" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-amber-300 font-semibold block">تحدي الغد المختار:</span>
+                                    <p class="text-sm font-medium text-slate-100 mt-0.5" id="challengeText">-</p>
+                                    <p class="text-xs text-slate-400 mt-1" id="challengeMeasure">-</p>
+                                </div>
+                            </div>
+                            <span class="text-xs bg-amber-500/10 text-amber-300 px-3 py-1 rounded-full border border-amber-500/20 shrink-0">قياس التحدي</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Registrations Quick Log -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4 text-slate-500"></i>
+                            آخر السجلات المسجلة
+                        </h3>
+                        <button onclick="switchTab('entry')" class="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                            إضافة جديد <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div id="recentEntriesList" class="space-y-2">
+                        <!-- Dynamic List -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 03: DAILY ENTRY FORM -->
+            <section id="view-entry" class="hidden max-w-4xl mx-auto space-y-6">
+                <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2" id="formTitle">
+                                <i data-lucide="file-edit" class="w-5 h-5 text-brand-600"></i>
+                                تسجيل بيانات اليوم
+                            </h2>
+                            <p class="text-xs text-slate-500">التاريخ مطلوب، وباقي الحقول اختيارية ليناسب وقتك.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <input type="date" id="entryDate" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none flex-1">
+                            <button type="button" onclick="resetForm()" class="text-xs text-slate-500 hover:text-slate-700 px-3 py-2 border rounded-xl">إلغاء</button>
+                        </div>
+                    </div>
+
+                    <form id="dailyForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+
+                        <!-- Card 1: النشاط البدني -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-emerald-700 font-bold">
+                                    <i data-lucide="dumbbell" class="w-5 h-5"></i>
+                                    <h3>النشاط البدني</h3>
+                                </div>
+                                <label class="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-700">
+                                    <input type="checkbox" id="isRestDay" onchange="toggleRestDay(this.checked)" class="rounded text-brand-600 focus:ring-brand-500">
+                                    <span>اليوم "يوم راحة"</span>
+                                </label>
+                            </div>
+
+                            <div id="exerciseFields" class="space-y-4">
+                                <div id="activitiesList" class="space-y-3">
+                                    <div class="activity-item bg-white p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">نوع النشاط</label>
+                                            <input type="text" placeholder="مشي، جري، تمارين..." class="act-type w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-brand-500 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">المدة (دقائق)</label>
+                                            <input type="number" min="0" placeholder="30" class="act-duration w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-brand-500 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">توقيت الحركة</label>
+                                            <select class="act-timing w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-brand-500 outline-none">
+                                                <option value="قبل المذاكرة">قبل المذاكرة</option>
+                                                <option value="بعد المذاكرة">بعد المذاكرة</option>
+                                                <option value="منتصف اليوم">منتصف اليوم / مستقل</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">المجهود (1 - 10)</label>
+                                            <input type="number" min="1" max="10" placeholder="5" class="act-effort w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-brand-500 outline-none">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="addActivityRow()" class="text-xs text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1">
+                                    <i data-lucide="plus" class="w-4 h-4"></i> إدخال أكثر من نشاط
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: المزاج والطاقة -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center gap-2 text-amber-700 font-bold">
+                                <i data-lucide="smile" class="w-5 h-5"></i>
+                                <h3>المزاج والطاقة (من 1 إلى 5)</h3>
+                            </div>
+
+                            <div id="generalRatingOnly" class="hidden bg-white p-3 rounded-lg border text-xs text-slate-600">
+                                <label class="block font-semibold mb-1">التقييم العام لليوم (يوم راحة)</label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <span class="text-[11px] block text-slate-500 mb-1">المزاج العام</span>
+                                        <input type="number" id="restMood" min="1" max="5" value="3" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] block text-slate-500 mb-1">مستوى الطاقة</span>
+                                        <input type="number" id="restEnergy" min="1" max="5" value="3" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="beforeAfterRating" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+                                    <span class="text-xs font-bold text-slate-700 block border-b pb-1">قبل النشاط / المذاكرة</span>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-[11px] text-slate-500 mb-1">المزاج (1-5)</label>
+                                            <input type="number" id="moodBefore" min="1" max="5" placeholder="3" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] text-slate-500 mb-1">الطاقة (1-5)</label>
+                                            <input type="number" id="energyBefore" min="1" max="5" placeholder="3" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+                                    <span class="text-xs font-bold text-slate-700 block border-b pb-1">بعد النشاط / المذاكرة</span>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-[11px] text-slate-500 mb-1">المزاج (1-5)</label>
+                                            <input type="number" id="moodAfter" min="1" max="5" placeholder="4" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] text-slate-500 mb-1">الطاقة (1-5)</label>
+                                            <input type="number" id="energyAfter" min="1" max="5" placeholder="4" class="w-full border rounded-lg px-2 py-1 text-xs">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: المذاكرة والتعلّم -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center gap-2 text-study-700 font-bold">
+                                <i data-lucide="book" class="w-5 h-5"></i>
+                                <h3>المذاكرة والتعلّم</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">المهمة المخطط لها</label>
+                                    <input type="text" id="plannedTask" placeholder="مثلاً: إنهاء الفصل الأول في الفيزياء" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">ما تم إنجازه فعلياً</label>
+                                    <input type="text" id="completedTask" placeholder="أنجزت 80% من الفصل وحل 10 أسئلة" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">وقت البداية المخطط</label>
+                                    <input type="time" id="plannedStartTime" class="w-full border rounded-lg px-2 py-1.5 text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">وقت البداية الفعلي</label>
+                                    <input type="time" id="actualStartTime" class="w-full border rounded-lg px-2 py-1.5 text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">مدة الجلسة (دقائق)</label>
+                                    <input type="number" id="studyDuration" min="0" placeholder="60" class="w-full border rounded-lg px-2 py-1.5 text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">التركيز (1 - 5)</label>
+                                    <input type="number" id="focusLevel" min="1" max="5" placeholder="4" class="w-full border rounded-lg px-2 py-1.5 text-xs">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: الموبايل واستخدام الشاشة -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center gap-2 text-purple-700 font-bold">
+                                <i data-lucide="smartphone" class="w-5 h-5"></i>
+                                <h3>استخدام الموبايل</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">مدة الاستخدام (دقائق/ساعات)</label>
+                                    <input type="text" id="phoneUsageTime" placeholder="مثلاً: 120 دقيقة" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">الغرض الرئيسي</label>
+                                    <select id="phonePurpose" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                        <option value="تعلّم ومذاكرة">تعلّم ومذاكرة</option>
+                                        <option value="ترفيه وتصفح">ترفيه وتصفح</option>
+                                        <option value="تواصل واجتماعي">تواصل واجتماعي</option>
+                                        <option value="مختلط">مختلط</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">عدد مرات المقاطعة</label>
+                                    <input type="number" id="phoneInterrupts" min="0" placeholder="مثلاً: 3" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                            </div>
+                            <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 flex items-center gap-2">
+                                <input type="checkbox" id="phoneFocusModeTried" class="rounded text-purple-600 focus:ring-purple-500">
+                                <label for="phoneFocusModeTried" class="text-xs text-purple-900 font-semibold cursor-pointer">
+                                    جرّبت خطوة لتنظيم الموبايل (مثل: تفعيل وضع التركيز / إبعاد الموبايل أثناء المذاكرة)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Card 5: القعدة والحركة والاستراحات -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-indigo-700 font-bold">
+                                    <i data-lucide="armchair" class="w-5 h-5"></i>
+                                    <h3>القعدة وحركة الاستراحة</h3>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">أطول فترة قعدة متواصلة (دقائق)</label>
+                                    <input type="number" id="sittingTime" min="0" placeholder="مثال: 90" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                                <div class="flex items-end pb-1">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="tookMovementBreak" class="rounded text-indigo-600">
+                                        <span class="text-xs font-semibold text-slate-700">أخذت استراحة حركة أثناء القعدة</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 6: نمط الحياة والنوم -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                            <div class="flex items-center gap-2 text-teal-700 font-bold">
+                                <i data-lucide="moon" class="w-5 h-5"></i>
+                                <h3>نمط الحياة والنوم</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">ساعات النوم (ساعة)</label>
+                                    <input type="number" step="0.5" id="sleepHours" min="0" max="24" placeholder="7.5" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">مستوى ضغط اليوم (1 - 5)</label>
+                                    <input type="number" id="dayStress" min="1" max="5" placeholder="3" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">ملاحظات اختيارية عن اليوم</label>
+                                <textarea id="dayNotes" rows="2" placeholder="أي ملاحظة تودين كتابتها..." class="w-full border rounded-lg p-2.5 text-xs outline-none"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Card 7: الوقت والفائدة (التأمل الذاتي) -->
+                        <div class="p-4 sm:p-5 rounded-xl border border-amber-200 bg-amber-50/30 space-y-4">
+                            <div class="flex items-center gap-2 text-amber-800 font-bold">
+                                <i data-lucide="compass" class="w-5 h-5"></i>
+                                <h3>الوقت والفائدة (تقييم الأثر)</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">الفائدة التي لاحظتها من الحركة</label>
+                                    <input type="text" id="moveBenefit" placeholder="مثلاً: زيادة التركيز وتصفية الذهن" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">هل ضيقت وقت المذاكرة أم كانت مناسبة؟</label>
+                                    <input type="text" id="moveCost" placeholder="مثلاً: مناسبة جداً، أخذت 20 دقيقة فقط" class="w-full border rounded-lg px-3 py-1.5 text-xs outline-none bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden ID for Edit Mode -->
+                        <input type="hidden" id="editEntryId" value="">
+
+                        <!-- Form Actions -->
+                        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                            <button type="button" onclick="resetForm()" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-100">إلغاء</button>
+                            <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-7 py-2.5 rounded-xl font-bold text-sm shadow-md transition flex items-center gap-2">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                حفظ التسجيل وحساب النقاط
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- SECTION 06: WEEKLY SUMMARY VIEW -->
+            <section id="view-weekly" class="hidden space-y-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-study-600"></i>
+                                ملخص وتطور الأسبوع
+                            </h2>
+                            <p class="text-xs text-slate-500">نظرة شاملة على بيانات الأسبوع المتابَع بناءً على إدخالاتك</p>
+                        </div>
+                        <span id="weeklyDaysRecorded" class="text-xs bg-study-50 text-study-700 font-bold px-3 py-1 rounded-full border border-study-200 w-max">
+                            0 من 7 أيام تسجيلاً
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <span class="text-[11px] text-slate-500 font-semibold block">إجمالي دقائق النشاط</span>
+                            <span class="text-xl font-black text-slate-800" id="weekTotalMoveMinutes">0</span>
+                            <span class="text-xs text-slate-500">دقيقة</span>
+                        </div>
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <span class="text-[11px] text-slate-500 font-semibold block">أيام النشاط / الراحة</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xl font-black text-emerald-600" id="weekActiveDays">0</span>
+                                <span class="text-xs text-slate-400">نشاط /</span>
+                                <span class="text-xl font-black text-amber-600" id="weekRestDays">0</span>
+                                <span class="text-xs text-slate-400">راحة</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <span class="text-[11px] text-slate-500 font-semibold block">تقدّم هدف الحركة</span>
+                            <span class="text-xl font-black text-brand-600" id="weekMoveGoalPercent">0%</span>
+                        </div>
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <span class="text-[11px] text-slate-500 font-semibold block">تقدّم هدف التعلّم</span>
+                            <span class="text-xl font-black text-study-600" id="weekLearnGoalPercent">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i>
+                            التركيز ومدة النشاط عبر الأيام
+                        </h3>
+                        <div class="relative h-64">
+                            <canvas id="chartFocusVsMove"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <i data-lucide="phone-off" class="w-4 h-4 text-purple-600"></i>
+                            عدد مقاطعات الموبايل اليومية
+                        </h3>
+                        <div class="relative h-64">
+                            <canvas id="chartPhoneInterrupts"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center gap-2 border-b pb-3">
+                        <i data-lucide="brain-circuit" class="w-5 h-5 text-indigo-600"></i>
+                        <h3 class="font-bold text-slate-800">تحليل الأنماط والملاحظات الذكية</h3>
+                    </div>
+                    <div id="weeklyPatternAnalysis" class="space-y-3 text-xs leading-relaxed text-slate-700">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-5 rounded-2xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <span class="text-xs bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold">تحدي الأسبوع القادم</span>
+                        <h4 class="text-lg font-bold" id="nextWeekChallengeTitle">تحدي الالتزام بوضع التركيز</h4>
+                        <p class="text-xs text-emerald-100" id="nextWeekChallengeDesc">الفعل: إبعاد الموبايل في أول 30 دقيقة من المذاكرة. طريقة القياس: تسجيل عدد المقاطعات.</p>
+                    </div>
+                    <button onclick="switchTab('entry')" class="bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-2.5 rounded-xl font-bold text-xs shrink-0 shadow-sm">
+                        جاهزة للتحدي
+                    </button>
+                </div>
+            </section>
+
+            <!-- SECTION 05: ACHIEVEMENTS & GAMIFICATION VIEW -->
+            <section id="view-achievements" class="hidden space-y-6">
+                <div class="bg-gradient-to-br from-brand-700 via-brand-600 to-study-700 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div class="space-y-2 text-center md:text-right">
+                            <span class="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full text-brand-100">مستواك الحالي</span>
+                            <h2 class="text-3xl font-black" id="achieveLevelName">البداية</h2>
+                            <p class="text-xs text-brand-100" id="achieveLevelDesc">استمري في تسجيل أنشطتك للارتقاء إلى المستوى القادم!</p>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 text-center min-w-[200px]">
+                            <span class="text-xs text-brand-100 font-semibold block mb-1">إجمالي النقاط المكتسبة</span>
+                            <span class="text-4xl font-black text-white" id="achieveTotalPoints">0</span>
+                            <span class="text-xs block text-emerald-200 mt-1" id="achieveNextLevelLeft">متبقي 50 نقطة للمستوى التالي</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                            شارات التقدير والإنجازات
+                        </h3>
+                        <span class="text-xs font-bold text-slate-500" id="badgesCountText">0 / 5 شارات unlocked</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="badgesContainer">
+                        <!-- Badges rendered by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="info" class="w-4 h-4 text-slate-500"></i>
+                        كيف تُحسب النقاط؟ (الحد اليومي: 30 نقطة)
+                    </h4>
+                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        <li class="flex items-center gap-2 bg-white p-2 rounded-lg border"><span class="font-bold text-brand-600">+5</span> تسجيل اليوم (بما فيه يوم الراحة)</li>
+                        <li class="flex items-center gap-2 bg-white p-2 rounded-lg border"><span class="font-bold text-brand-600">+10</span> إتمام مهمة التعلّم المتفق عليها</li>
+                        <li class="flex items-center gap-2 bg-white p-2 rounded-lg border"><span class="font-bold text-brand-600">+5</span> تنفيذ نشاط مخطط أو التزام بيوم راحة</li>
+                        <li class="flex items-center gap-2 bg-white p-2 rounded-lg border"><span class="font-bold text-brand-600">+5</span> تجربة خطوة لتنظيم الموبايل</li>
+                        <li class="flex items-center gap-2 bg-white p-2 rounded-lg border"><span class="font-bold text-brand-600">+5</span> أخذ استراحة حركة أثناء القعدة</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 px-2 py-2 shadow-lg">
+        <div class="grid grid-cols-4 gap-1">
+            <button onclick="switchTab('dashboard')" id="mob-tab-dashboard" class="mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-slate-500 transition">
+                <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+                اللوحة
+            </button>
+            <button onclick="switchTab('entry')" id="mob-tab-entry" class="mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-slate-500 transition">
+                <i data-lucide="plus-circle" class="w-5 h-5 mb-0.5"></i>
+                تسجيل
+            </button>
+            <button onclick="switchTab('weekly')" id="mob-tab-weekly" class="mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-slate-500 transition">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 mb-0.5"></i>
+                الأسبوع
+            </button>
+            <button onclick="switchTab('achievements')" id="mob-tab-achievements" class="mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-slate-500 transition">
+                <i data-lucide="award" class="w-5 h-5 mb-0.5"></i>
+                إنجازاتي
+            </button>
+        </div>
+    </nav>
+
+    <!-- SETTINGS MODAL -->
+    <div id="onboardingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 my-8">
+            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-brand-100 text-brand-700 p-2 rounded-xl">
+                        <i data-lucide="compass" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800" id="onboardModalTitle">الإعدادات والأهداف</h2>
+                        <p class="text-xs text-slate-500">حددي أولوياتك وأهدافك للبدء في المتابعة</p>
+                    </div>
+                </div>
+                <!-- Logout Button in Settings -->
+                <button type="button" onclick="logoutUser()" class="text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl flex items-center gap-1">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i> خروج
+                </button>
+            </div>
+
+            <form id="onboardingForm" onsubmit="handleSaveSettings(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">أولويتك الحالية</label>
+                    <select id="cfgPriority" class="w-full border rounded-xl p-2.5 font-medium outline-none text-xs">
+                        <option value="بدء المذاكرة في موعدها المحدد">بدء المذاكرة في موعدها المحدد</option>
+                        <option value="تقليل مقاطعات الموبايل">تقليل مقاطعات الموبايل والشاشة</option>
+                        <option value="زيادة الحركة والنشاط البدني">زيادة الحركة والنشاط البدني</option>
+                        <option value="الموازنة بين المذاكرة والراحة">الموازنة بين المذاكرة والراحة</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">هدف الحركة الأسبوعي</label>
+                        <input type="number" id="cfgMoveGoal" min="10" placeholder="150" value="150" class="w-full border rounded-xl p-2.5 font-medium outline-none text-xs">
+                        <span class="text-[10px] text-slate-400 mt-0.5 block">بالدقائق خلال الأسبوع</span>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">هدف التعلّم الأسبوعي</label>
+                        <input type="number" id="cfgLearnGoal" min="1" placeholder="5" value="5" class="w-full border rounded-xl p-2.5 font-medium outline-none text-xs">
+                        <span class="text-[10px] text-slate-400 mt-0.5 block">عدد الجلسات / المهام المنجزة</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">يوم بداية أسبوع المتابعة</label>
+                    <select id="cfgStartDay" class="w-full border rounded-xl p-2.5 font-medium outline-none text-xs">
+                        <option value="السبت">السبت</option>
+                        <option value="الأحد">الأحد</option>
+                        <option value="الإثنين">الإثنين</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-md text-sm transition">
+                        حفظ الأهداف والانطلاق 🚀
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Badge Notification Popup Modal -->
+    <div id="badgeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-amber-200 transform transition-all scale-100">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <i data-lucide="award" class="w-10 h-10"></i>
+            </div>
+            <span class="text-xs font-bold text-amber-600 uppercase tracking-widest block mb-1">مبروك! فتحت شارة جديدة</span>
+            <h3 class="text-xl font-black text-slate-800 mb-2" id="unlockedBadgeTitle">جلسة بتركيز</h3>
+            <p class="text-xs text-slate-600 mb-5" id="unlockedBadgeDesc">حفظت جلسة مذاكرة مكتملة مع خطوة تقليل المقاطعات!</p>
+            <button onclick="closeBadgeModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl shadow-md text-xs">
+                رائع، استمرار!
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN APP JAVASCRIPT CODE WITH HYBRID LOGGING & SYNC -->
+    <script>
+        // Badges Configuration
+        const BADGES_CONFIG = [
+            { id: 'b_first_entry', title: 'بداية موثّقة', desc: 'أول تسجيل لك في المنصة!', icon: 'flag' },
+            { id: 'b_three_days', title: 'ثلاث خطوات', desc: 'التسجيل في 3 أيام خلال أسبوع واحد.', icon: 'calendar-check' },
+            { id: 'b_focus_session', title: 'جلسة بتركيز', desc: 'إتمام مهمة تعلّم مع تنفيذ خطوة لتقليل مقاطعات الموبايل.', icon: 'zap' },
+            { id: 'b_move_goal', title: 'هدف الحركة', desc: 'تحقيق هدف النشاط الأسبوعي بالكامل.', icon: 'trophy' },
+            { id: 'b_try_evaluate', title: 'جرّبت وقيّمت', desc: 'تجربة تعديل وتسجيل نتيجته والفائدة الملاحظة.', icon: 'thumbs-up' }
+        ];
+
+        // Global State & User Data Structure
+        let currentUser = null; // User identity (No PIN stored)
+        let currentPinSession = ''; // In-memory session PIN for sheet calls
+        let isOnline = navigator.onLine;
+
+        let appSettings = {
+            priority: 'بدء المذاكرة في موعدها المحدد',
+            moveGoal: 150,
+            learnGoal: 5,
+            startDay: 'السبت'
+        };
+
+        let dailyEntries = [];
+        let unlockedBadges = {};
+        let pendingQueue = [];
+
+        // Chart Instances
+        let chartFocusVsMoveInstance = null;
+        let chartPhoneInterruptsInstance = null;
+
+        // Key Helper for Local Storage scoped per user
+        function getStorageKey(type) {
+            const userTag = currentUser ? currentUser.trim().toLowerCase() : 'local_default';
+            return `yowmi_${userTag}_${type}`;
+        }
+
+        // Online & Pending Queue Watcher
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateSyncStatus();
+            processPendingQueue();
+        });
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateSyncStatus();
+        });
+
+        // Toast Notification Helper
+        function showToast(message) {
+            let toast = document.getElementById('appToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'appToast';
+                toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-xl text-xs font-bold transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2 border border-slate-700';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> ${message}`;
+            lucide.createIcons();
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Update Sync Badge Status UI
+        function updateSyncStatus() {
+            const badge = document.getElementById('syncStatusBadge');
+            if (!badge) return;
+
+            if (!SCRIPT_URL || SCRIPT_URL.trim() === '') {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> التخزين المحلي فقط`;
+                return;
+            }
+
+            if (!isOnline) {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200 flex items-center gap-1';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> غير متصل`;
+                return;
+            }
+
+            if (pendingQueue.length > 0) {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1 animate-pulse';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> بانتظار المزامنة (${pendingQueue.length})`;
+            } else {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> تم الحفظ والمزامنة`;
+            }
+        }
+
+        // API Fetch Handler for Google Apps Script Web App
+        async function apiPost(actionPayload) {
+            if (!SCRIPT_URL || SCRIPT_URL.trim() === '') {
+                return { ok: false, error: 'SCRIPT_URL غير معرف' };
+            }
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(actionPayload)
+                });
+                return await response.json();
+            } catch (err) {
+                return { ok: false, error: err.toString() };
+            }
+        }
+
+        // Queue Operations for Offline Resilience
+        function addToPendingQueue(actionPayload) {
+            pendingQueue.push(actionPayload);
+            saveLocalData();
+            updateSyncStatus();
+            processPendingQueue();
+        }
+
+        async function processPendingQueue() {
+            if (!isOnline || !SCRIPT_URL || pendingQueue.length === 0 || !currentPinSession) return;
+
+            const nextAction = pendingQueue[0];
+            nextAction.pin = currentPinSession; // Attach in-memory session PIN
+
+            const res = await apiPost(nextAction);
+            if (res && res.ok) {
+                pendingQueue.shift(); // Remove processed
+                saveLocalData();
+                updateSyncStatus();
+                if (pendingQueue.length > 0) processPendingQueue();
+            }
+        }
+
+        // Window Load Bootstrapper
+        window.onload = function() {
+            // Set date input to today
+            const entryDateInput = document.getElementById('entryDate');
+            if (entryDateInput) {
+                entryDateInput.value = new Date().toISOString().split('T')[0];
+            }
+
+            if (!SCRIPT_URL || SCRIPT_URL.trim() === '') {
+                // SCRIPT_URL empty: Bypass Auth Screen & run local mode directly
+                document.getElementById('authScreen').classList.add('hidden');
+                showToast('تنبيه: الربط بالشيت غير مفعّل. التطبيق يعمل بالتخزين المحلي فقط.');
+                bootUserSession('local_user', '');
+            } else {
+                // SCRIPT_URL present: Show Auth Screen
+                document.getElementById('authScreen').classList.remove('hidden');
+            }
+
+            lucide.createIcons();
+        };
+
+        // Auth Operations (Login / Register)
+        async function performAuth(actionType) {
+            const usernameInput = document.getElementById('authUsername').value.trim();
+            const pinInput = document.getElementById('authPin').value.trim();
+            const errDiv = document.getElementById('authError');
+
+            errDiv.classList.add('hidden');
+            if (!usernameInput) {
+                errDiv.innerText = 'يرجى إدخال اسم المستخدم.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+            if (!/^\d{4,6}$/.test(pinInput)) {
+                errDiv.innerText = 'رمز PIN يجب أن يتكون من 4 إلى 6 أرقام.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            if (!SCRIPT_URL || SCRIPT_URL.trim() === '') {
+                bootUserSession(usernameInput, pinInput);
+                return;
+            }
+
+            showToast('جاري الاتصال والتحقق...');
+            const res = await apiPost({
+                action: actionType,
+                username: usernameInput,
+                pin: pinInput
+            });
+
+            if (res && res.ok) {
+                bootUserSession(usernameInput, pinInput);
+                if (actionType === 'register') {
+                    openSettingsModal(true);
+                }
+            } else {
+                errDiv.innerText = res.error || 'فشلت عملية التحقق، يرجى التأكد من البيانات.';
+                errDiv.classList.remove('hidden');
+            }
+        }
+
+        // Initialize User Session & Load Data
+        async function bootUserSession(username, pin) {
+            currentUser = username;
+            currentPinSession = pin;
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('headerSubtitle').innerText = `أهلاً بك، ${currentUser}`;
+
+            loadLocalData();
+
+            // Fetch from sheet if online & SCRIPT_URL configured
+            if (SCRIPT_URL && SCRIPT_URL.trim() !== '' && isOnline) {
+                updateSyncStatus();
+                const res = await apiPost({
+                    action: 'loadAll',
+                    username: currentUser,
+                    pin: currentPinSession
+                });
+
+                if (res && res.ok && res.data) {
+                    if (res.data.records) dailyEntries = res.data.records;
+                    if (res.data.settings) appSettings = res.data.settings;
+                    saveLocalData();
+                }
+            }
+
+            updateSyncStatus();
+            renderDashboard();
+            switchTab('dashboard');
+            processPendingQueue();
+        }
+
+        // Logout Handler
+        function logoutUser() {
+            currentUser = null;
+            currentPinSession = '';
+            dailyEntries = [];
+            unlockedBadges = {};
+            pendingQueue = [];
+            document.getElementById('onboardingModal').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('authPin').value = '';
+        }
+
+        // Storage Management (LocalStorage scoped by user)
+        function loadLocalData() {
+            const savedSettings = localStorage.getItem(getStorageKey('settings'));
+            if (savedSettings) appSettings = JSON.parse(savedSettings);
+
+            const savedEntries = localStorage.getItem(getStorageKey('entries'));
+            if (savedEntries) dailyEntries = JSON.parse(savedEntries);
+
+            const savedBadges = localStorage.getItem(getStorageKey('badges'));
+            if (savedBadges) unlockedBadges = JSON.parse(savedBadges);
+
+            const savedQueue = localStorage.getItem(getStorageKey('queue'));
+            if (savedQueue) pendingQueue = JSON.parse(savedQueue);
+
+            document.getElementById('cfgPriority').value = appSettings.priority;
+            document.getElementById('cfgMoveGoal').value = appSettings.moveGoal;
+            document.getElementById('cfgLearnGoal').value = appSettings.learnGoal;
+            document.getElementById('cfgStartDay').value = appSettings.startDay;
+        }
+
+        function saveLocalData() {
+            localStorage.setItem(getStorageKey('settings'), JSON.stringify(appSettings));
+            localStorage.setItem(getStorageKey('entries'), JSON.stringify(dailyEntries));
+            localStorage.setItem(getStorageKey('badges'), JSON.stringify(unlockedBadges));
+            localStorage.setItem(getStorageKey('queue'), JSON.stringify(pendingQueue));
+        }
+
+        // Form Submit Handler
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const dateStr = document.getElementById('entryDate').value;
+            if (!dateStr) return;
+
+            const isRest = document.getElementById('isRestDay').checked;
+            
+            let activities = [];
+            if (!isRest) {
+                const rows = document.querySelectorAll('.activity-item');
+                rows.forEach(r => {
+                    const type = r.querySelector('.act-type').value.trim();
+                    const dur = parseInt(r.querySelector('.act-duration').value) || 0;
+                    const timing = r.querySelector('.act-timing').value;
+                    const effort = parseInt(r.querySelector('.act-effort').value) || 5;
+                    if (type || dur > 0) {
+                        activities.push({ type, duration: dur, timing, effort });
+                    }
+                });
+            }
+
+            const editId = document.getElementById('editEntryId').value;
+
+            const newEntry = {
+                id: editId || 'entry_' + Date.now(),
+                date: dateStr,
+                isRestDay: isRest,
+                activities: activities,
+                totalMoveMinutes: activities.reduce((sum, a) => sum + a.duration, 0),
+
+                moodBefore: isRest ? null : parseInt(document.getElementById('moodBefore').value) || null,
+                energyBefore: isRest ? null : parseInt(document.getElementById('energyBefore').value) || null,
+                moodAfter: isRest ? null : parseInt(document.getElementById('moodAfter').value) || null,
+                energyAfter: isRest ? null : parseInt(document.getElementById('energyAfter').value) || null,
+                restMood: isRest ? parseInt(document.getElementById('restMood').value) || 3 : null,
+                restEnergy: isRest ? parseInt(document.getElementById('restEnergy').value) || 3 : null,
+
+                plannedTask: document.getElementById('plannedTask').value.trim(),
+                completedTask: document.getElementById('completedTask').value.trim(),
+                plannedStartTime: document.getElementById('plannedStartTime').value,
+                actualStartTime: document.getElementById('actualStartTime').value,
+                studyDuration: parseInt(document.getElementById('studyDuration').value) || 0,
+                focusLevel: parseInt(document.getElementById('focusLevel').value) || null,
+
+                phoneUsageTime: document.getElementById('phoneUsageTime').value.trim(),
+                phonePurpose: document.getElementById('phonePurpose').value,
+                phoneInterrupts: parseInt(document.getElementById('phoneInterrupts').value) || 0,
+                phoneFocusModeTried: document.getElementById('phoneFocusModeTried').checked,
+
+                sittingTime: parseInt(document.getElementById('sittingTime').value) || 0,
+                tookMovementBreak: document.getElementById('tookMovementBreak').checked,
+
+                sleepHours: parseFloat(document.getElementById('sleepHours').value) || null,
+                dayStress: parseInt(document.getElementById('dayStress').value) || null,
+                dayNotes: document.getElementById('dayNotes').value.trim(),
+
+                moveBenefit: document.getElementById('moveBenefit').value.trim(),
+                moveCost: document.getElementById('moveCost').value.trim()
+            };
+
+            newEntry.points = calculateRecordPoints(newEntry);
+
+            const existingIdx = dailyEntries.findIndex(e => e.date === dateStr || e.id === newEntry.id);
+            if (existingIdx >= 0) {
+                dailyEntries[existingIdx] = newEntry;
+            } else {
+                dailyEntries.push(newEntry);
+            }
+
+            dailyEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            evaluateBadgeUnlocks(newEntry);
+            saveLocalData();
+
+            // Sync with Sheet Queue
+            addToPendingQueue({
+                action: 'saveRecord',
+                username: currentUser,
+                record: newEntry
+            });
+
+            resetForm();
+            renderDashboard();
+            switchTab('dashboard');
+            showToast('تم حفظ التسجيل وحساب النقاط بنجاح!');
+        }
+
+        // Settings Modal & Save Action
+        function openSettingsModal(isOnboarding = false) {
+            const modal = document.getElementById('onboardingModal');
+            modal.classList.remove('hidden');
+            if (!isOnboarding) {
+                document.getElementById('onboardModalTitle').innerText = 'الإعدادات والأهداف';
+            }
+        }
+
+        function handleSaveSettings(e) {
+            e.preventDefault();
+            appSettings.priority = document.getElementById('cfgPriority').value;
+            appSettings.moveGoal = parseInt(document.getElementById('cfgMoveGoal').value) || 150;
+            appSettings.learnGoal = parseInt(document.getElementById('cfgLearnGoal').value) || 5;
+            appSettings.startDay = document.getElementById('cfgStartDay').value;
+
+            saveLocalData();
+
+            // Sync Settings with Sheet Queue
+            addToPendingQueue({
+                action: 'saveSettings',
+                username: currentUser,
+                settings: appSettings
+            });
+
+            document.getElementById('onboardingModal').classList.add('hidden');
+            renderDashboard();
+            switchTab('dashboard');
+            showToast('تم حفظ الأهداف والإعدادات بنجاح!');
+        }
+
+        function deleteEntry(id) {
+            dailyEntries = dailyEntries.filter(e => e.id !== id);
+            saveLocalData();
+
+            // Queue deletion action to Sheet
+            addToPendingQueue({
+                action: 'deleteRecord',
+                username: currentUser,
+                recordId: id
+            });
+
+            renderDashboard();
+            showToast('تم حذف السجل.');
+        }
+
+        // Navigation Controls
+        function switchTab(tabId) {
+            const views = ['dashboard', 'entry', 'weekly', 'achievements'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.toggle('hidden', v !== tabId);
+
+                const btn = document.getElementById(`tab-btn-${v}`);
+                if (btn) {
+                    if (v === tabId) {
+                        btn.className = 'tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition bg-brand-50 text-brand-700 border border-brand-200 shadow-sm';
+                    } else {
+                        btn.className = 'tab-btn px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition text-slate-600 hover:bg-slate-100';
+                    }
+                }
+
+                const mobBtn = document.getElementById(`mob-tab-${v}`);
+                if (mobBtn) {
+                    if (v === tabId) {
+                        mobBtn.className = 'mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 transition';
+                    } else {
+                        mobBtn.className = 'mob-tab-btn flex flex-col items-center py-1.5 px-1 rounded-xl text-[11px] font-bold text-slate-500 transition';
+                    }
+                }
+            });
+
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'weekly') renderWeeklySummary();
+            if (tabId === 'achievements') renderAchievements();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Activity Rows Engine
+        function addActivityRow() {
+            const container = document.getElementById('activitiesList');
+            const newRow = document.createElement('div');
+            newRow.className = 'activity-item bg-white p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3 relative';
+            newRow.innerHTML = `
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">نوع النشاط</label>
+                    <input type="text" placeholder="جري، سباحة..." class="act-type w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">المدة (دقائق)</label>
+                    <input type="number" min="0" placeholder="30" class="act-duration w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">توقيت الحركة</label>
+                    <select class="act-timing w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none">
+                        <option value="قبل المذاكرة">قبل المذاكرة</option>
+                        <option value="بعد المذاكرة">بعد المذاكرة</option>
+                        <option value="منتصف اليوم">منتصف اليوم / مستقل</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">المجهود (1-10)</label>
+                        <input type="number" min="1" max="10" placeholder="5" class="act-effort w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                    <button type="button" onclick="this.closest('.activity-item').remove()" class="mt-4 text-red-500 hover:text-red-700 p-1">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            lucide.createIcons();
+        }
+
+        function toggleRestDay(isRest) {
+            const exFields = document.getElementById('exerciseFields');
+            const generalRating = document.getElementById('generalRatingOnly');
+            const beforeAfterRating = document.getElementById('beforeAfterRating');
+
+            if (isRest) {
+                exFields.classList.add('opacity-40', 'pointer-events-none');
+                generalRating.classList.remove('hidden');
+                beforeAfterRating.classList.add('hidden');
+            } else {
+                exFields.classList.remove('opacity-40', 'pointer-events-none');
+                generalRating.classList.add('hidden');
+                beforeAfterRating.classList.remove('hidden');
+            }
+        }
+
+        // Gamification & Rule Engine
+        function calculateRecordPoints(entry) {
+            let pts = 0;
+            pts += 5; // 5 pts for logging day
+            if (entry.completedTask && entry.completedTask.trim() !== '') pts += 10;
+            if (entry.isRestDay || (entry.activities && entry.activities.length > 0 && entry.activities[0].type)) pts += 5;
+            if (entry.phoneFocusModeTried) pts += 5;
+            if (entry.tookMovementBreak) pts += 5;
+            return Math.min(pts, 30);
+        }
+
+        function getLevelInfo(totalPts) {
+            if (totalPts < 50) return { name: 'البداية', min: 0, next: 50 };
+            if (totalPts < 100) return { name: 'بناء العادة', min: 50, next: 100 };
+            if (totalPts < 150) return { name: 'خطوات ثابتة', min: 100, next: 150 };
+
+            const extraLevels = Math.floor((totalPts - 150) / 50) + 1;
+            const currentMin = 150 + (extraLevels - 1) * 50;
+            const nextThreshold = currentMin + 50;
+            return { name: `مستوى متقدم (${extraLevels + 3})`, min: currentMin, next: nextThreshold };
+        }
+
+        function prepareNewEntry() {
+            resetForm();
+            switchTab('entry');
+        }
+
+        function resetForm() {
+            document.getElementById('dailyForm').reset();
+            document.getElementById('editEntryId').value = '';
+            document.getElementById('formTitle').innerText = 'تسجيل بيانات اليوم';
+            document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+            toggleRestDay(false);
+
+            const container = document.getElementById('activitiesList');
+            container.innerHTML = `
+                <div class="activity-item bg-white p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">نوع النشاط</label>
+                        <input type="text" placeholder="مشي، جري، تمارين..." class="act-type w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">المدة (دقائق)</label>
+                        <input type="number" min="0" placeholder="30" class="act-duration w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">توقيت الحركة</label>
+                        <select class="act-timing w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none">
+                            <option value="قبل المذاكرة">قبل المذاكرة</option>
+                            <option value="بعد المذاكرة">بعد المذاكرة</option>
+                            <option value="منتصف اليوم">منتصف اليوم / مستقل</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">المجهود (1 - 10)</label>
+                        <input type="number" min="1" max="10" placeholder="5" class="act-effort w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function editEntry(id) {
+            const item = dailyEntries.find(e => e.id === id);
+            if (!item) return;
+
+            switchTab('entry');
+            document.getElementById('editEntryId').value = item.id;
+            document.getElementById('formTitle').innerText = 'تعديل تسجيل يوم ' + item.date;
+            document.getElementById('entryDate').value = item.date;
+
+            document.getElementById('isRestDay').checked = item.isRestDay;
+            toggleRestDay(item.isRestDay);
+
+            if (!item.isRestDay && item.activities && item.activities.length > 0) {
+                const container = document.getElementById('activitiesList');
+                container.innerHTML = '';
+                item.activities.forEach(act => {
+                    const row = document.createElement('div');
+                    row.className = 'activity-item bg-white p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3 relative';
+                    row.innerHTML = `
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">نوع النشاط</label>
+                            <input type="text" value="${act.type || ''}" class="act-type w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">المدة (دقائق)</label>
+                            <input type="number" value="${act.duration || 0}" class="act-duration w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">توقيت الحركة</label>
+                            <select class="act-timing w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+                                <option value="قبل المذاكرة" ${act.timing==='قبل المذاكرة'?'selected':''}>قبل المذاكرة</option>
+                                <option value="بعد المذاكرة" ${act.timing==='بعد المذاكرة'?'selected':''}>بعد المذاكرة</option>
+                                <option value="منتصف اليوم" ${act.timing==='منتصف اليوم'?'selected':''}>منتصف اليوم / مستقل</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">المجهود</label>
+                                <input type="number" value="${act.effort || 5}" class="act-effort w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                            </div>
+                            <button type="button" onclick="this.closest('.activity-item').remove()" class="mt-4 text-red-500 p-1">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+
+            document.getElementById('moodBefore').value = item.moodBefore || '';
+            document.getElementById('energyBefore').value = item.energyBefore || '';
+            document.getElementById('moodAfter').value = item.moodAfter || '';
+            document.getElementById('energyAfter').value = item.energyAfter || '';
+            document.getElementById('restMood').value = item.restMood || 3;
+            document.getElementById('restEnergy').value = item.restEnergy || 3;
+
+            document.getElementById('plannedTask').value = item.plannedTask || '';
+            document.getElementById('completedTask').value = item.completedTask || '';
+            document.getElementById('plannedStartTime').value = item.plannedStartTime || '';
+            document.getElementById('actualStartTime').value = item.actualStartTime || '';
+            document.getElementById('studyDuration').value = item.studyDuration || '';
+            document.getElementById('focusLevel').value = item.focusLevel || '';
+
+            document.getElementById('phoneUsageTime').value = item.phoneUsageTime || '';
+            document.getElementById('phonePurpose').value = item.phonePurpose || 'مختلط';
+            document.getElementById('phoneInterrupts').value = item.phoneInterrupts || 0;
+            document.getElementById('phoneFocusModeTried').checked = !!item.phoneFocusModeTried;
+
+            document.getElementById('sittingTime').value = item.sittingTime || 0;
+            document.getElementById('tookMovementBreak').checked = !!item.tookMovementBreak;
+
+            document.getElementById('sleepHours').value = item.sleepHours || '';
+            document.getElementById('dayStress').value = item.dayStress || '';
+            document.getElementById('dayNotes').value = item.dayNotes || '';
+
+            document.getElementById('moveBenefit').value = item.moveBenefit || '';
+            document.getElementById('moveCost').value = item.moveCost || '';
+
+            lucide.createIcons();
+        }
+
+        // Badges Engine
+        function evaluateBadgeUnlocks(latestEntry) {
+            if (dailyEntries.length >= 1 && !unlockedBadges['b_first_entry']) {
+                triggerBadgeUnlock('b_first_entry');
+            }
+            if (dailyEntries.length >= 3 && !unlockedBadges['b_three_days']) {
+                triggerBadgeUnlock('b_three_days');
+            }
+            if (latestEntry && latestEntry.completedTask && latestEntry.phoneFocusModeTried && !unlockedBadges['b_focus_session']) {
+                triggerBadgeUnlock('b_focus_session');
+            }
+            const totalWeeklyMove = dailyEntries.reduce((sum, e) => sum + (e.totalMoveMinutes || 0), 0);
+            if (totalWeeklyMove >= appSettings.moveGoal && !unlockedBadges['b_move_goal']) {
+                triggerBadgeUnlock('b_move_goal');
+            }
+            if (latestEntry && (latestEntry.moveBenefit || latestEntry.moveCost) && !unlockedBadges['b_try_evaluate']) {
+                triggerBadgeUnlock('b_try_evaluate');
+            }
+        }
+
+        function triggerBadgeUnlock(badgeId) {
+            unlockedBadges[badgeId] = Date.now();
+            saveLocalData();
+
+            const badgeObj = BADGES_CONFIG.find(b => b.id === badgeId);
+            if (badgeObj) {
+                document.getElementById('unlockedBadgeTitle').innerText = badgeObj.title;
+                document.getElementById('unlockedBadgeDesc').innerText = badgeObj.desc;
+                document.getElementById('badgeModal').classList.remove('hidden');
+            }
+        }
+
+        function closeBadgeModal() {
+            document.getElementById('badgeModal').classList.add('hidden');
+        }
+
+        // Render Dashboard & Sections
+        function renderDashboard() {
+            const totalPoints = dailyEntries.reduce((sum, e) => sum + (e.points || 0), 0);
+            const levelInfo = getLevelInfo(totalPoints);
+
+            document.getElementById('headerLevelName').innerText = levelInfo.name;
+            document.getElementById('headerPoints').innerText = totalPoints + ' ن';
+
+            document.getElementById('dashTotalPoints').innerText = totalPoints;
+            document.getElementById('dashLevelTitle').innerText = levelInfo.name;
+            
+            const currentLevelProgress = totalPoints - levelInfo.min;
+            const levelSpan = levelInfo.next - levelInfo.min;
+            const progressPercent = Math.min(100, Math.round((currentLevelProgress / levelSpan) * 100));
+            
+            document.getElementById('dashNextLevelProgress').innerText = `${totalPoints} / ${levelInfo.next}`;
+            document.getElementById('dashLevelBar').style.width = `${progressPercent}%`;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayEntry = dailyEntries.find(e => e.date === todayStr);
+            if (todayEntry) {
+                document.getElementById('dashTodayPoints').innerText = todayEntry.points || 0;
+                document.getElementById('dashTodayStatus').innerText = todayEntry.isRestDay ? 'يوم راحة مسجل (+5 ن)' : 'تم تسجيل اليوم بنجاح!';
+            } else {
+                document.getElementById('dashTodayPoints').innerText = 0;
+                document.getElementById('dashTodayStatus').innerText = 'لم تسجلي بعد لهذا اليوم';
+            }
+
+            const totalMoveMins = dailyEntries.reduce((sum, e) => sum + (e.totalMoveMinutes || 0), 0);
+            document.getElementById('dashMoveProgressVal').innerText = totalMoveMins;
+            document.getElementById('dashMoveGoalText').innerText = `الهدف: ${appSettings.moveGoal} دقيقة`;
+            const movePercent = Math.min(100, Math.round((totalMoveMins / appSettings.moveGoal) * 100));
+            document.getElementById('dashMoveBar').style.width = `${movePercent}%`;
+
+            const completedLearnSessions = dailyEntries.filter(e => e.completedTask && e.completedTask.trim() !== '').length;
+            document.getElementById('dashLearnProgressVal').innerText = completedLearnSessions;
+            document.getElementById('dashLearnGoalText').innerText = `الهدف: ${appSettings.learnGoal} جلسات`;
+            const learnPercent = Math.min(100, Math.round((completedLearnSessions / appSettings.learnGoal) * 100));
+            document.getElementById('dashLearnBar').style.width = `${learnPercent}%`;
+
+            renderTodayObservationCard(todayEntry || dailyEntries[0]);
+            renderDailyTipsAndChallenge(todayEntry || dailyEntries[0]);
+            renderRecentEntriesList();
+
+            lucide.createIcons();
+        }
+
+        function renderTodayObservationCard(entry) {
+            const container = document.getElementById('todayObservationContent');
+            if (!entry) {
+                container.innerHTML = `
+                    <div class="col-span-2 text-center py-6 text-slate-400 text-xs">
+                        لا توجد بيانات مسجلة مؤخراً. اضغطي على "سجّلي يومك" لإدخال بيانات اليوم وملاحظة الفرق!
+                    </div>
+                `;
+                return;
+            }
+
+            let moodDiffText = 'لم يُحدد';
+            if (entry.isRestDay) {
+                moodDiffText = `تقييم يوم الراحة: المزاج ${entry.restMood || 3}/5 - الطاقة ${entry.restEnergy || 3}/5`;
+            } else if (entry.moodBefore && entry.moodAfter) {
+                const diffM = entry.moodAfter - entry.moodBefore;
+                const diffE = entry.energyAfter - entry.energyBefore;
+                moodDiffText = `المزاج (${entry.moodBefore} ➔ ${entry.moodAfter}) | الطاقة (${entry.energyBefore} ➔ ${entry.energyAfter})`;
+                if (diffM > 0 || diffE > 0) moodDiffText += ' 📈 (تحسّن ملحوظ)';
+            }
+
+            const studyCompare = entry.completedTask ? 
+                `المخطط: "${entry.plannedTask || 'عام'}" ➔ المنجَز: "${entry.completedTask}"` : 'لم يتم تسجيل مهمة مذاكرة.';
+
+            let moveTimingText = 'غير محدد';
+            if (entry.activities && entry.activities.length > 0) {
+                moveTimingText = `الحركة جاءت: ${entry.activities[0].timing || 'غير محدد'} (${entry.totalMoveMinutes} دقيقة)`;
+            } else if (entry.isRestDay) {
+                moveTimingText = 'اليوم كان يوم راحة مخطط.';
+            }
+
+            const benefitText = entry.moveBenefit ? `الفائدة: "${entry.moveBenefit}"` : 'لم تسجلي فائدة ملحوظة بعد.';
+            const costText = entry.moveCost ? `الوقت/التأثير: "${entry.moveCost}"` : '';
+
+            container.innerHTML = `
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <span class="text-xs font-bold text-slate-500 block mb-1">تغيّر المزاج والطاقة</span>
+                    <p class="text-xs font-semibold text-slate-700">${moodDiffText}</p>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <span class="text-xs font-bold text-slate-500 block mb-1">إنجاز المذاكرة vs الخطة</span>
+                    <p class="text-xs font-semibold text-slate-700 truncate">${studyCompare}</p>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <span class="text-xs font-bold text-slate-500 block mb-1">توقيت الحركة</span>
+                    <p class="text-xs font-semibold text-slate-700">${moveTimingText}</p>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <span class="text-xs font-bold text-slate-500 block mb-1">الفائدة المقيمة والوقت</span>
+                    <p class="text-xs font-semibold text-slate-700">${benefitText} ${costText}</p>
+                </div>
+            `;
+        }
+
+        function renderDailyTipsAndChallenge(entry) {
+            const container = document.getElementById('aiTipsContainer');
+            const challengeCard = document.getElementById('tomorrowChallengeCard');
+
+            let tips = [];
+            let challenge = null;
+
+            if (!entry) {
+                tips.push({
+                    cat: 'المذاكرة',
+                    text: 'ابدأي بتسجيل أول يوم لك! تقسيم الهدف إلى خطوات صغيرة يساعدك على البدء بسهولة.',
+                    icon: 'book'
+                });
+            } else {
+                if (entry.plannedStartTime && entry.actualStartTime && entry.actualStartTime > entry.plannedStartTime) {
+                    tips.push({
+                        cat: 'المذاكرة',
+                        text: `لاحظنا تأخر بداية المذاكرة عن الموعد المخطط (${entry.plannedStartTime}). جربي تحديد أول خطوة صغيرة جداً للبدء في موعدك غداً.`,
+                        icon: 'clock'
+                    });
+                }
+                if (entry.focusLevel && entry.focusLevel <= 3) {
+                    tips.push({
+                        cat: 'المذاكرة والتركيز',
+                        text: 'عند صعوبة فهم الدرس أو انخفاض التركيز، اقترحي شرح فكرة واحدة من الذاكرة بصوت عالٍ أو حل سؤال واحد مباشر.',
+                        icon: 'brain'
+                    });
+                }
+                if (entry.phoneInterrupts && entry.phoneInterrupts > 2) {
+                    tips.push({
+                        cat: 'الموبايل',
+                        text: `الموبايل قاطعك ${entry.phoneInterrupts} مرات في جلسة المذاكرة. بكرة جرّبي وضع التركيز في أول جلسة وسجّلي عدد المقاطعات.`,
+                        icon: 'smartphone'
+                    });
+                    challenge = {
+                        text: 'تفعيل "وضع التركيز" أو إبعاد الهاتف في أول جلسة مذاكرة.',
+                        measure: 'طريقة القياس: عدد مرات مقاطعة الجلسة (الهدف: 0 - 1 مقاطعة).'
+                    };
+                }
+                if (entry.sittingTime && entry.sittingTime >= 60 && !entry.tookMovementBreak) {
+                    tips.push({
+                        cat: 'القعدة والحركة',
+                        text: `سجّلتِ قعدة متواصلة لمدة ${entry.sittingTime} دقيقة. اقترحي وقفة حركة قصيرة لمدة دقيقة واحدة بعد كل 45 دقيقة.`,
+                        icon: 'armchair'
+                    });
+                    if (!challenge) {
+                        challenge = {
+                            text: 'أخذ استراحة حركة لمدة دقيقة بعد 45 دقيقة قعدة.',
+                            measure: 'طريقة القياس: تسجيل نعم/لا في نموذج اليوم عند أخذ الاستراحة.'
+                        };
+                    }
+                }
+                if (entry.sleepHours && entry.sleepHours < 6) {
+                    tips.push({
+                        cat: 'النوم والطاقة',
+                        text: `ساعات النوم (${entry.sleepHours} س) كانت قادرة على خفض طاقتك اليوم. اختاري مهمة مذاكرة أصغر أو توقيتاً يبدأ بكير.`,
+                        icon: 'battery-low'
+                    });
+                }
+            }
+
+            if (tips.length === 0) {
+                tips.push({
+                    cat: 'توازن اليوم',
+                    text: 'يومك ممتاز ومتوازن! استمري على هذا النمط وحافظي على الفواصل الحركية وتصفية الذهن.',
+                    icon: 'smile'
+                });
+            }
+
+            container.innerHTML = tips.slice(0, 3).map(t => `
+                <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700 flex items-start gap-3">
+                    <div class="bg-amber-400/20 text-amber-400 p-2 rounded-lg shrink-0 mt-0.5">
+                        <i data-lucide="${t.icon}" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-amber-400 block">${t.cat}</span>
+                        <p class="text-xs text-slate-200 mt-0.5 leading-relaxed">${t.text}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            if (challenge) {
+                document.getElementById('challengeText').innerText = challenge.text;
+                document.getElementById('challengeMeasure').innerText = challenge.measure;
+                challengeCard.classList.remove('hidden');
+            } else {
+                document.getElementById('challengeText').innerText = 'بدء جلسة المذاكرة الأولى في وقتها المخطط بالضبط.';
+                document.getElementById('challengeMeasure').innerText = 'طريقة القياس: مقارنة وقت البداية الفعلي بالمخطط.';
+                challengeCard.classList.remove('hidden');
+            }
+        }
+
+        function renderRecentEntriesList() {
+            const container = document.getElementById('recentEntriesList');
+            if (dailyEntries.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-slate-400 text-xs">
+                        لا يوجد أي سجلات يومية مضافة حتى الآن.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = dailyEntries.slice(0, 5).map(e => `
+                <div class="flex items-center justify-between bg-slate-50 hover:bg-slate-100 p-3 rounded-xl border border-slate-200 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="${e.isRestDay ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'} p-2 rounded-lg font-bold text-xs">
+                            ${e.isRestDay ? 'راحة' : (e.totalMoveMinutes + ' د')}
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 block">${e.date}</span>
+                            <span class="text-[11px] text-slate-500">
+                                ${e.completedTask ? e.completedTask : (e.isRestDay ? 'يوم استعادة القوى' : 'تسجيل عادي')}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md border border-brand-200">+${e.points || 0} ن</span>
+                        <button onclick="editEntry('${e.id}')" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-white" title="تعديل">
+                            <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteEntry('${e.id}')" class="p-1.5 text-red-400 hover:text-red-600 rounded-lg hover:bg-white" title="حذف">
+                            <i data-lucide="trash" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderWeeklySummary() {
+            const weekEntries = dailyEntries.slice(0, 7);
+            const recordedCount = weekEntries.length;
+
+            document.getElementById('weeklyDaysRecorded').innerText = `${recordedCount} من 7 أيام تسجيلاً`;
+
+            const totalMoveMins = weekEntries.reduce((sum, e) => sum + (e.totalMoveMinutes || 0), 0);
+            const activeDays = weekEntries.filter(e => !e.isRestDay && e.totalMoveMinutes > 0).length;
+            const restDays = weekEntries.filter(e => e.isRestDay).length;
+
+            document.getElementById('weekTotalMoveMinutes').innerText = totalMoveMins;
+            document.getElementById('weekActiveDays').innerText = activeDays;
+            document.getElementById('weekRestDays').innerText = restDays;
+
+            const moveGoalPct = Math.min(100, Math.round((totalMoveMins / appSettings.moveGoal) * 100));
+            document.getElementById('weekMoveGoalPercent').innerText = `${moveGoalPct}%`;
+
+            const learnDone = weekEntries.filter(e => e.completedTask && e.completedTask.trim() !== '').length;
+            const learnGoalPct = Math.min(100, Math.round((learnDone / appSettings.learnGoal) * 100));
+            document.getElementById('weekLearnGoalPercent').innerText = `${learnGoalPct}%`;
+
+            renderWeeklyCharts(weekEntries);
+            renderPatternAnalysis(weekEntries);
+            lucide.createIcons();
+        }
+
+        function renderWeeklyCharts(entries) {
+            const sorted = [...entries].reverse();
+            const labels = sorted.map(e => e.date.substring(5));
+            const focusData = sorted.map(e => e.focusLevel || 0);
+            const moveData = sorted.map(e => e.totalMoveMinutes || 0);
+            const interruptsData = sorted.map(e => e.phoneInterrupts || 0);
+
+            const ctx1 = document.getElementById('chartFocusVsMove').getContext('2d');
+            if (chartFocusVsMoveInstance) chartFocusVsMoveInstance.destroy();
+            chartFocusVsMoveInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'التركيز (1-5)', data: focusData, backgroundColor: '#3b82f6', yAxisID: 'yFocus', borderRadius: 6 },
+                        { label: 'دقائق الحركة', data: moveData, backgroundColor: '#10b981', yAxisID: 'yMove', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        yFocus: { type: 'linear', position: 'left', min: 0, max: 5, title: { display: true, text: 'درجة التركيز' } },
+                        yMove: { type: 'linear', position: 'right', min: 0, title: { display: true, text: 'دقائق الحركة' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('chartPhoneInterrupts').getContext('2d');
+            if (chartPhoneInterruptsInstance) chartPhoneInterruptsInstance.destroy();
+            chartPhoneInterruptsInstance = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'عدد مقاطعات الموبايل',
+                        data: interruptsData,
+                        borderColor: '#a855f7',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { min: 0, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderPatternAnalysis(entries) {
+            const container = document.getElementById('weeklyPatternAnalysis');
+            if (entries.length < 2) {
+                container.innerHTML = `
+                    <div class="p-3 bg-amber-50 text-amber-800 rounded-xl border border-amber-200">
+                        📌 <strong>معلومة مساعدة:</strong> يُرجى تسجيل يومين على الأقل لإتاحة المقارنة بين أيام النشاط وأيام الراحة واستكشاف الأنماط الذكية!
+                    </div>
+                `;
+                return;
+            }
+
+            const moveBeforeStudyDays = entries.filter(e => e.activities && e.activities.some(a => a.timing === 'قبل المذاكرة'));
+            const moveAfterStudyDays = entries.filter(e => e.activities && e.activities.some(a => a.timing === 'بعد المذاكرة'));
+
+            let obs = [];
+
+            if (moveBeforeStudyDays.length > 0) {
+                const avgFocusBefore = (moveBeforeStudyDays.reduce((s, e) => s + (e.focusLevel || 0), 0) / moveBeforeStudyDays.length).toFixed(1);
+                obs.push(`تظهر البيانات في <strong>${moveBeforeStudyDays.length} أيام</strong> جُرّبت فيها الحركة <em>قبل المذاكرة</em> أن متوسط مستوى التركيز بلغ <strong>${avgFocusBefore} / 5</strong>.`);
+            }
+
+            if (moveAfterStudyDays.length > 0) {
+                obs.push(`في <strong>${moveAfterStudyDays.length} أيام</strong>، جاءت الحركة <em>بعد المذاكرة</em> كطريقة لتصفية الذهن وتخفيف الضغط.`);
+            }
+
+            const focusModeDays = entries.filter(e => e.phoneFocusModeTried);
+            if (focusModeDays.length > 0) {
+                const avgInterruptsWithMode = (focusModeDays.reduce((s, e) => s + (e.phoneInterrupts || 0), 0) / focusModeDays.length).toFixed(1);
+                obs.push(`عند تفعيل خطوة تنظيم الموبايل (${focusModeDays.length} أيام)، انخفض متوسط المقاطعات إلى <strong>${avgInterruptsWithMode} مقاطعة</strong>.`);
+            }
+
+            container.innerHTML = obs.map(o => `
+                <div class="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span class="text-brand-600 font-bold">▪</span>
+                    <p class="leading-relaxed">${o}</p>
+                </div>
+            `).join('') + `
+                <p class="text-[11px] text-slate-400 italic pt-1">
+                    * الملاحظات المعروضة مستخرجة من مقارنة البيانات المسجلة، وهي للاسترشاد الشخصي لمساعدتك على اختيار النمط الأنسب ليومك.
+                </p>
+            `;
+        }
+
+        function renderAchievements() {
+            const totalPoints = dailyEntries.reduce((sum, e) => sum + (e.points || 0), 0);
+            const levelInfo = getLevelInfo(totalPoints);
+
+            document.getElementById('achieveLevelName').innerText = levelInfo.name;
+            document.getElementById('achieveTotalPoints').innerText = totalPoints;
+
+            const leftPts = levelInfo.next - totalPoints;
+            document.getElementById('achieveNextLevelLeft').innerText = `متبقي ${leftPts} نقطة للمستوى التالي (${levelInfo.next})`;
+
+            const container = document.getElementById('badgesContainer');
+            const unlockedCount = Object.keys(unlockedBadges).length;
+            document.getElementById('badgesCountText').innerText = `${unlockedCount} / ${BADGES_CONFIG.length} شارات مُكتسبة`;
+
+            container.innerHTML = BADGES_CONFIG.map(b => {
+                const isUnlocked = !!unlockedBadges[b.id];
+                return `
+                    <div class="p-4 rounded-2xl border ${isUnlocked ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'} flex items-start gap-3 transition">
+                        <div class="${isUnlocked ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-200 text-slate-400'} p-3 rounded-xl shrink-0">
+                            <i data-lucide="${b.icon}" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-slate-800 text-sm">${b.title}</h4>
+                                ${isUnlocked ? '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">مكتسبة</span>' : '<span class="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full">مغلقة</span>'}
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1 leading-normal">${b.desc}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
